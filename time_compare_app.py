@@ -150,7 +150,7 @@ def compare_time(legacy_df, wfs_df, threshold, activity_mapping, column_pairs, n
                     'legacy_value': legacy_vals,
                     'wfs_value': wfs_vals})
 
-            num_of_mismatches = num_of_mismatches + len(mismatches)
+            num_of_mismatches += len(mismatches)
             st.write(f"**There are {len(mismatches)} mismatches between `{col1}` and `{col2}`**")
             st.write(f"**Mismatches between `{col1}` and `{col2}`:**")
             st.dataframe(mismatches)
@@ -175,13 +175,13 @@ def compare_time(legacy_df, wfs_df, threshold, activity_mapping, column_pairs, n
     # Are all the rows correctly matched according to the mapping table?
     comparison_result = combined_df['is_match'].all()
 
-    try:
-        num_of_mismatches = num_of_mismatches + len(comparison_result)
-    except:
-        pass
+    # Add the number of mismatches from the results of comparing activity codes to pay codes. 
+    num_of_mismatches += combined_df['is_match'].value_counts().get(False, 0)
+
 
     st.write("### Comparing activity code and pay code columns:")
     st.write("Do all rows match the expected activity/pay code mapping?", comparison_result)
+    st.write(f"There are {combined_df['is_match'].value_counts().get(False, 0)} mismatches found in activity codes to pay codes.")
 
     # Show mismatches for manual review
     mismatches = combined_df[~combined_df['is_match']]
