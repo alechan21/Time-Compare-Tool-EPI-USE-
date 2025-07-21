@@ -79,6 +79,14 @@ def compare_time(legacy_df, wfs_df, threshold, activity_mapping, column_pairs, n
         are_equal = legacy_df[col1].equals(wfs_df[col2])
         st.write(f"Are `{col1}` and `{col2}` equal? {are_equal}")
         if are_equal == False:
+            # DEBUG STATEMENTS - Check data type
+            if legacy_df[col1].dtype != wfs_df[col2].dtype:
+                st.write(f"Type mismatch: {legacy_df[col1].dtype} vs {wfs_df[col2].dtype}")
+            # DEBUG STATEMENTS - Check shape
+            if legacy_df[col1].shape != wfs_df[col2].shape:
+                st.write(f"Shape mismatch: {legacy_df[col1].shape} vs {wfs_df[col2].shape}")
+
+
             # This if statement is particularly for the DURATION_MINUTES columns 
             if np.issubdtype(legacy_df[col1].dtype, np.timedelta64):
                 # Convert time deltas to float minutes for comparison
@@ -105,13 +113,24 @@ def compare_time(legacy_df, wfs_df, threshold, activity_mapping, column_pairs, n
                     'legacy_value': legacy_vals,
                     'wfs_value': wfs_vals,
                     'Difference':difference_in_values})
-                
-                
     
 
             elif np.issubdtype(legacy_df[col1].dtype, np.number):
                 # Use isclose for floating point comparisons with a threshold
                 differences = ~np.isclose(legacy_df[col1], wfs_df[col2], rtol=(1-threshold), equal_nan=True)  # threshold is the user allowed difference 
+
+                # Calculate the max difference to determine there the difference is from floating point precision.
+                num_differences = differences.sum()
+                max_diff = np.abs(legacy_df[col1] - wfs_df[col2]).max()
+
+                if num_differences == 0:
+                    st.write(f"Columns {col1} and {col2} are not strictly equal (per .equals), but all differences are due to floating point precision (max diff: {max_diff:.3e}).")
+
+                # DEBUG PRINTS: show first few mismatched values and max difference
+                # st.write(f"\n--- FLOATING POINT MISMATCH DEBUG: {col1} vs {col2} ---")
+                # st.write("Legacy mismatched values:\n", legacy_df.loc[differences, col1].head(10))
+                # st.write("WFS mismatched values:\n", wfs_df.loc[differences, col2].head(10))
+                # st.write("Max absolute difference:\n", np.abs(legacy_df[col1] - wfs_df[col2]).max())
 
                 legacy_vals = legacy_df.loc[differences, col1]
                 wfs_vals = wfs_df.loc[differences, col2]
@@ -155,6 +174,12 @@ def compare_time(legacy_df, wfs_df, threshold, activity_mapping, column_pairs, n
 
     # Are all the rows correctly matched according to the mapping table?
     comparison_result = combined_df['is_match'].all()
+
+    try:
+        num_of_mismatches = num_of_mismatches + len(comparison_result)
+    except:
+        pass
+
     st.write("### Comparing activity code and pay code columns:")
     st.write("Do all rows match the expected activity/pay code mapping?", comparison_result)
 
@@ -248,9 +273,9 @@ if st.session_state.upload_complete:
 
     # Display a preview of the uploaded data sets to allow the user another opportunity to verify the data looks correct. 
     # st.subheader("Uploaded Files After Pre-Processing is Complete")
-    # st.write("Pre-Processing Legacy Data Set:")
+    # st.write("Pre-Processing Legacy Dataset:")
     # st.dataframe(legacy_df.head(10))
-    # st.write("Pre-Processing WFS Data Set:")
+    # st.write("Pre-Processing WFS Dataset:")
     # st.dataframe(wfs_df.head(10))
 
 
